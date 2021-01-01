@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"io"
 	"io/ioutil"
 	"log"
@@ -202,27 +203,64 @@ func DownloadFile(filepath string, url string) error {
 	return err
 }
 
-// DownloadJarfile downloads a Mojang server jarfile to the jarfiles directory
-func DownloadJarfile(versionDetail VersionDetail) error {
-	jarfileURL := versionDetail.Downloads.Server.URL
-	jarfileName := fmt.Sprintf("jarfiles/%v.jar", versionDetail.ID)
-	log.Println(fmt.Sprintf("Downloading jarfile from %v into %v", jarfileURL, jarfileName))
-
-	return DownloadFile(jarfileName, jarfileURL)
+// GetJarfilePath returns the standard location for downloaded server jarfiles
+func GetJarfilePath(jarfileName string) string {
+	return fmt.Sprintf("jarfiles/%v", jarfileName)
 }
 
 // DownloadJarfileIfNeeded download a jarfile if the desired jarfile has not already been downloaded
-func DownloadJarfileIfNeeded(versionDetail VersionDetail) error {
-	cmd := exec.Command("mkdir", "-p", "./jarfiles")
-	cmd.Run()
-	jarfileName := fmt.Sprintf("jarfiles/%v.jar", versionDetail.ID)
+func DownloadJarfileIfNeeded(versionDetail VersionDetail) (string, error) {
+	jarfileName := fmt.Sprintf("%v.jar", versionDetail.ID)
+	jarfilePath := GetJarfilePath(jarfileName)
 
-	if _, err := os.Stat(jarfileName); err == nil {
-		log.Println(fmt.Sprintf("Jarfile %v found. Skipping download.", jarfileName))
-		return nil
+	if _, err := os.Stat(jarfilePath); err == nil {
+		log.Println(fmt.Sprintf("Jarfile %v found. Skipping download.", jarfilePath))
+		return jarfileName, nil
 	}
 
-	return DownloadJarfile(versionDetail)
+	jarfileURL := versionDetail.Downloads.Server.URL
+	log.Println(fmt.Sprintf("Downloading jarfile from %v into %v", jarfileURL, jarfilePath))
+
+	exec.Command("mkdir", "-p", "jarfiles").Run()
+	if err := DownloadFile(jarfilePath, jarfileURL); err != nil {
+		return "", err
+	}
+
+	return jarfileName, nil
+}
+
+// CreateWorld creates a new directory in the worlds/ directory. This new directory represents
+// a new server world and will contain all necessary server files (ie. eula.txt, server.properties,
+// server jarfile). After creating the new directory with the given uuid name, the appropriate
+// jarfile corresponding with the provided versionID will be copied into the world and the jarfile
+// will be run to instantiate required server files.
+//
+// The path to this new directory is returned upon successful operation.
+func CreateWorld(uuid string, jarfileName string) (string, error) {
+	worldPath := fmt.Sprintf("worlds/%v", uuid)
+	jarfilePath := GetJarfilePath(jarfileName)
+
+	log.Println(fmt.Sprintf("Creating world at %v", worldPath))
+	if err := exec.Command("mkdir", "-p", worldPath).Run(); err != nil {
+		return "", err
+	}
+
+	log.Println(fmt.Sprintf("Copying server jarfile from %v into %v", jarfilePath, worldPath))
+	if err := exec.Command("cp", jarfilePath, worldPath).Run(); err != nil {
+		return "", err
+	}
+
+	log.Println("Initializing server jarfile...")
+	cmd := exec.Command("java", "-jar", jarfileName)
+	cmd.Dir = worldPath
+	if err := cmd.Run(); err != nil {
+		log.Println(err)
+		return "", err
+	}
+
+	log.Println("Success.")
+
+	return worldPath, nil
 }
 
 // CreateServer creates a server world directory for a user to later manage
@@ -240,17 +278,34 @@ func CreateServer(versionID string, serverName string, isEulaAccepted bool, serv
 		return nil, err
 	}
 
-	err = DownloadJarfileIfNeeded(*versionDetails)
+	jarfileName, err := DownloadJarfileIfNeeded(*versionDetails)
 
 	if err != nil {
 		return nil, err
 	}
 
-	var server MCServer
+	id, err := uuid.NewRandom()
+
+	if err != nil {
+		return nil, err
+	}
+
+	worldPath, err := CreateWorld(id.String(), jarfileName)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: Update eula.txt and server.properties
+	server := MCServer{ID: id.String(), Name: serverName, Path: worldPath}
 	return &server, nil
 }
 
 func main() {
 	var serverProperties ServerProperties
-	CreateServer("1.16.4", "TestServer", true, serverProperties)
+	_, err := CreateServer("1.16.4", "TestServer", true, serverProperties)
+
+	if err != nil {
+		log.Fatalln(err)
+	}
 }
