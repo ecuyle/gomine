@@ -1,0 +1,6 @@
+jarfiles/**
+worlds/**
+users/**
+go.sum
+
+.DS_Store
