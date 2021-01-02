@@ -1,59 +1,12 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
-	"encoding/json"
-	"errors"
 	"fmt"
-	"github.com/google/uuid"
-	"io"
-	"io/ioutil"
 	"log"
-	"net/http"
-	"os"
 	"os/exec"
-	"strconv"
+
+	"github.com/google/uuid"
 )
-
-// Version struct
-type Version struct {
-	ID          string `json:"id"`
-	VersionType string `json:"type"`
-	URL         string `json:"url"`
-	Time        string `json:"time"`
-	ReleaseTime string `json:"releaseTime"`
-}
-
-// LatestVersion struct
-type LatestVersion struct {
-	Release  string `json:"release"`
-	Snapshot string `json:"snapshot"`
-}
-
-// VersionManifest struct
-type VersionManifest struct {
-	Latest   LatestVersion `json:"latest"`
-	Versions []Version     `json:"versions"`
-}
-
-// VersionDownload struc
-type VersionDownload struct {
-	Sha1 string `json:"sha1"`
-	Size int    `json:"size"`
-	URL  string `json:"url"`
-}
-
-// VersionDownloads struct
-type VersionDownloads struct {
-	Server VersionDownload `json:"server"`
-}
-
-// VersionDetail struct
-type VersionDetail struct {
-	Downloads VersionDownloads `json:"downloads"`
-	ID        string           `json:"id"`
-}
 
 // ServerProperties struct
 type ServerProperties struct {
@@ -116,130 +69,14 @@ type MCServer struct {
 	Path       string
 }
 
-// GetVersionDetail returns the details of a given Mojang version object
-func GetVersionDetail(versionURL string) (*VersionDetail, error) {
-	resp, err := http.Get(versionURL)
-
-	if err != nil {
-		return nil, err
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-
-	if err != nil {
-		return nil, err
-	}
-
-	var versionDetail VersionDetail
-	err = json.Unmarshal(body, &versionDetail)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &versionDetail, nil
-}
-
-// GetVersionByID returns the Mojang version object given a version id
-func GetVersionByID(versionID string) (*Version, error) {
-	versionManifest, err := GetVersionManifest()
-
-	if err != nil {
-		return nil, err
-	}
-
-	for i := 0; i < len(versionManifest.Versions); i++ {
-		var version = versionManifest.Versions[i]
-
-		if versionID == version.ID {
-			return &version, nil
-		}
-	}
-
-	return nil, errors.New("Could not find version with id: " + versionID)
-}
-
-// GetVersionManifest returns the Mojang versions manifest
-func GetVersionManifest() (*VersionManifest, error) {
-	manifestURL := "https://launchermeta.mojang.com/mc/game/version_manifest.json"
-
-	resp, err := http.Get(manifestURL)
-
-	if err != nil {
-		return nil, err
-	}
-
-	body, err := ioutil.ReadAll(resp.Body)
-
-	if err != nil {
-		return nil, err
-	}
-
-	var versionManifest VersionManifest
-	err = json.Unmarshal(body, &versionManifest)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &versionManifest, nil
-}
-
-// DownloadFile downloads a file to a filepath given a url
-func DownloadFile(filepath string, url string) error {
-	resp, err := http.Get(url)
-
-	if err != nil {
-		return err
-	}
-
-	defer resp.Body.Close()
-	out, err := os.Create(filepath)
-
-	if err != nil {
-		return err
-	}
-
-	defer out.Close()
-	_, err = io.Copy(out, resp.Body)
-
-	return err
-}
-
-// GetJarfilePath returns the standard location for downloaded server jarfiles
-func GetJarfilePath(jarfileName string) string {
-	return fmt.Sprintf("jarfiles/%v", jarfileName)
-}
-
-// DownloadJarfileIfNeeded download a jarfile if the desired jarfile has not already been downloaded
-func DownloadJarfileIfNeeded(versionDetail VersionDetail) (string, error) {
-	jarfileName := fmt.Sprintf("%v.jar", versionDetail.ID)
-	jarfilePath := GetJarfilePath(jarfileName)
-
-	if _, err := os.Stat(jarfilePath); err == nil {
-		log.Println(fmt.Sprintf("Jarfile %v found. Skipping download.", jarfilePath))
-		return jarfileName, nil
-	}
-
-	jarfileURL := versionDetail.Downloads.Server.URL
-	log.Println(fmt.Sprintf("Downloading jarfile from %v into %v", jarfileURL, jarfilePath))
-
-	exec.Command("mkdir", "-p", "jarfiles").Run()
-	if err := DownloadFile(jarfilePath, jarfileURL); err != nil {
-		return "", err
-	}
-
-	return jarfileName, nil
-}
-
-// CreateWorld creates a new directory in the worlds/ directory. This new directory represents
+// MakeWorld creates a new directory in the worlds/ directory. This new directory represents
 // a new server world and will contain all necessary server files (ie. eula.txt, server.properties,
 // server jarfile). After creating the new directory with the given uuid name, the appropriate
 // jarfile corresponding with the provided versionID will be copied into the world and the jarfile
 // will be run to instantiate required server files.
 //
 // The path to this new directory is returned upon successful operation.
-func CreateWorld(uuid string, jarfileName string) (string, error) {
+func MakeWorld(uuid string, jarfileName string) (string, error) {
 	worldPath := fmt.Sprintf("worlds/%v", uuid)
 	jarfilePath := GetJarfilePath(jarfileName)
 
@@ -266,57 +103,8 @@ func CreateWorld(uuid string, jarfileName string) (string, error) {
 	return worldPath, nil
 }
 
-// ReadFileIntoMap reads a file with key/value pairs separated by `=` into a map
-func ReadFileIntoMap(filepath string) (*map[string]interface{}, error) {
-	file, err := os.Open(filepath)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	var data map[string]interface{}
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		fmt.Println(scanner.Text())
-	}
-
-	if err := scanner.Err(); err != nil {
-		return nil, err
-	}
-
-	return &data, nil
-}
-
-// UpdateEULA updates the eula.txt for a server with the provided value
-func UpdateEULA(value bool, filepath string) error {
-	data, err := ioutil.ReadFile(filepath)
-
-	if err != nil {
-		return err
-	}
-
-	oldValueInBytes := []byte(strconv.FormatBool(!value))
-	valueInBytes := []byte(strconv.FormatBool(value))
-	newData := bytes.Replace(data, oldValueInBytes, valueInBytes, 1)
-
-	file, err := os.OpenFile(filepath, os.O_RDWR, 0644)
-
-	if err != nil {
-		return err
-	}
-
-	defer file.Close()
-
-	if _, err := file.WriteAt(newData, 0); err != nil {
-		return err
-	}
-
-	log.Println(fmt.Sprintf("%v updated with new value %v", filepath, value))
-	return nil
-}
-
-// CreateServer creates a server world directory for a user to later manage
-func CreateServer(versionID string, serverName string, isEulaAccepted bool, serverProperties ServerProperties) (*MCServer, error) {
+// MakeServer creates a server world directory for a user to later manage
+func MakeServer(versionID string, serverName string, hasAcceptedEULA bool, serverProperties ServerProperties) (*MCServer, error) {
 	// TODO: This can all probably be cached
 	version, err := GetVersionByID(versionID)
 
@@ -342,24 +130,17 @@ func CreateServer(versionID string, serverName string, isEulaAccepted bool, serv
 		return nil, err
 	}
 
-	worldPath, err := CreateWorld(id.String(), jarfileName)
+	worldPath, err := MakeWorld(id.String(), jarfileName)
 
 	if err != nil {
 		return nil, err
 	}
 
-	UpdateEULA(true, fmt.Sprintf("%v/eula.txt", worldPath))
+	if err := UpdateEULA(hasAcceptedEULA, fmt.Sprintf("%v/eula.txt", worldPath)); err != nil {
+		return nil, err
+	}
 
 	// TODO: Update eula.txt and server.properties
 	server := MCServer{ID: id.String(), Name: serverName, Path: worldPath}
 	return &server, nil
-}
-
-func main() {
-	var serverProperties ServerProperties
-	_, err := CreateServer("1.16.4", "TestServer", true, serverProperties)
-
-	if err != nil {
-		log.Fatalln(err)
-	}
 }
