@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strconv"
 )
 
 // Version struct
@@ -263,6 +266,55 @@ func CreateWorld(uuid string, jarfileName string) (string, error) {
 	return worldPath, nil
 }
 
+// ReadFileIntoMap reads a file with key/value pairs separated by `=` into a map
+func ReadFileIntoMap(filepath string) (*map[string]interface{}, error) {
+	file, err := os.Open(filepath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var data map[string]interface{}
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		fmt.Println(scanner.Text())
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	return &data, nil
+}
+
+// UpdateEULA updates the eula.txt for a server with the provided value
+func UpdateEULA(value bool, filepath string) error {
+	data, err := ioutil.ReadFile(filepath)
+
+	if err != nil {
+		return err
+	}
+
+	oldValueInBytes := []byte(strconv.FormatBool(!value))
+	valueInBytes := []byte(strconv.FormatBool(value))
+	newData := bytes.Replace(data, oldValueInBytes, valueInBytes, 1)
+
+	file, err := os.OpenFile(filepath, os.O_RDWR, 0644)
+
+	if err != nil {
+		return err
+	}
+
+	defer file.Close()
+
+	if _, err := file.WriteAt(newData, 0); err != nil {
+		return err
+	}
+
+	log.Println(fmt.Sprintf("%v updated with new value %v", filepath, value))
+	return nil
+}
+
 // CreateServer creates a server world directory for a user to later manage
 func CreateServer(versionID string, serverName string, isEulaAccepted bool, serverProperties ServerProperties) (*MCServer, error) {
 	// TODO: This can all probably be cached
@@ -295,6 +347,8 @@ func CreateServer(versionID string, serverName string, isEulaAccepted bool, serv
 	if err != nil {
 		return nil, err
 	}
+
+	UpdateEULA(true, fmt.Sprintf("%v/eula.txt", worldPath))
 
 	// TODO: Update eula.txt and server.properties
 	server := MCServer{ID: id.String(), Name: serverName, Path: worldPath}
