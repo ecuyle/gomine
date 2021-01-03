@@ -1,6 +1,7 @@
-jarfiles/**
+jarFiles/**
 worlds/**
 users/**
 go.sum
+gomine
 
 .DS_Store

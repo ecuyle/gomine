@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -12,6 +13,8 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+
+	"github.com/magiconair/properties"
 )
 
 // Version struct
@@ -143,33 +146,39 @@ func DownloadFile(filepath string, url string) error {
 	return err
 }
 
-// GetJarfilePath returns the standard location for downloaded server jarfiles
-func GetJarfilePath(jarfileName string) string {
-	return fmt.Sprintf("jarfiles/%v", jarfileName)
+// GetJarFilepath returns the standard location for downloaded server jarFiles
+func GetJarFilepath(jarFileName string) string {
+	return fmt.Sprintf("jarFiles/%v", jarFileName)
 }
 
-// DownloadJarfileIfNeeded download a jarfile if the desired jarfile has not already been downloaded
-func DownloadJarfileIfNeeded(versionDetail VersionDetail) (string, error) {
-	jarfileName := fmt.Sprintf("%v.jar", versionDetail.ID)
-	jarfilePath := GetJarfilePath(jarfileName)
+// GetServerFilePath gets the full path to a server from the worlds/
+// directory starting at the project root
+func GetServerFilepath(serverID string) string {
+	return fmt.Sprintf("worlds/%v", serverID)
+}
 
-	if _, err := os.Stat(jarfilePath); err == nil {
-		log.Println(fmt.Sprintf("Jarfile %v found. Skipping download.", jarfilePath))
-		return jarfileName, nil
+// DownloadjarFileIfNeeded download a jarFile if the desired jarFile has not already been downloaded
+func DownloadjarFileIfNeeded(versionDetail VersionDetail) (string, error) {
+	jarFileName := fmt.Sprintf("%v.jar", versionDetail.ID)
+	jarFilePath := GetJarFilepath(jarFileName)
+
+	if _, err := os.Stat(jarFilePath); err == nil {
+		log.Println(fmt.Sprintf("jarFile `%v` found. Skipping download.", jarFilePath))
+		return jarFileName, nil
 	}
 
-	jarfileURL := versionDetail.Downloads.Server.URL
-	log.Println(fmt.Sprintf("Downloading jarfile from %v into %v", jarfileURL, jarfilePath))
+	jarFileURL := versionDetail.Downloads.Server.URL
+	log.Println(fmt.Sprintf("Downloading jarFile from `%v` into `%v`", jarFileURL, jarFilePath))
 
-	if err := exec.Command("mkdir", "-p", "jarfiles").Run(); err != nil {
+	if err := exec.Command("mkdir", "-p", "jarFiles").Run(); err != nil {
 		return "", err
 	}
 
-	if err := DownloadFile(jarfilePath, jarfileURL); err != nil {
+	if err := DownloadFile(jarFilePath, jarFileURL); err != nil {
 		return "", err
 	}
 
-	return jarfileName, nil
+	return jarFileName, nil
 }
 
 // UpdateEULA updates the eula.txt for a server with the provided value
@@ -183,7 +192,7 @@ func UpdateEULA(value bool, filepath string) error {
 	oldValueInBytes := []byte(strconv.FormatBool(!value))
 
 	if !bytes.Contains(data, oldValueInBytes) {
-		log.Println(fmt.Sprintf("%v already is set to value `%v`. Skipping EULA update.", filepath, value))
+		log.Println(fmt.Sprintf("`%v` already is set to value `%v`. Skipping EULA update.", filepath, value))
 		return nil
 	}
 
@@ -202,6 +211,52 @@ func UpdateEULA(value bool, filepath string) error {
 		return err
 	}
 
-	log.Println(fmt.Sprintf("%v updated with new value `%v`", filepath, value))
+	log.Println(fmt.Sprintf("`%v` updated with new value `%v`", filepath, value))
 	return nil
+}
+
+// GetServerProperties gets the current server properties for a given server
+func GetServerProperties(filepath string) *properties.Properties {
+	return properties.MustLoadFile(filepath, properties.UTF8)
+}
+
+// WriteServerProperties updates a server.properties file with an updated properties.Properties struct
+func WriteServerProperties(filepath string, serverProperties *properties.Properties) error {
+	serverPropertiesFile, err := os.Create(filepath)
+	if err != nil {
+		return err
+	}
+	defer serverPropertiesFile.Close()
+
+	writer := bufio.NewWriter(serverPropertiesFile)
+	if _, err := serverProperties.Write(writer, properties.UTF8); err != nil {
+		return err
+	}
+	writer.Flush()
+
+	return nil
+}
+
+// UpdateServerProperties updates the server.properties file for a given server
+func UpdateServerProperties(customServerProperties map[string]interface{}, filepath string) (*ServerProperties, error) {
+	currentServerProperties := GetServerProperties(filepath)
+
+	for key, value := range customServerProperties {
+		if err := currentServerProperties.SetValue(key, value); err != nil {
+			return nil, err
+		}
+	}
+
+	if err := WriteServerProperties(filepath, currentServerProperties); err != nil {
+		return nil, err
+	}
+
+	log.Println(fmt.Sprintf("`%v` updated with new values: %v", filepath, customServerProperties))
+
+	updatedServerProperties := ServerProperties{}
+	if err := currentServerProperties.Decode(&updatedServerProperties); err != nil {
+		return nil, err
+	}
+
+	return &updatedServerProperties, nil
 }
