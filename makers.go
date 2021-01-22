@@ -118,7 +118,7 @@ func MakeServer(versionID string, serverName string, hasAcceptedEULA bool, custo
 		return nil, err
 	}
 
-	jarFileName, err := DownloadjarFileIfNeeded(*versionDetails)
+	jarFileName, err := DownloadJarFileIfNeeded(*versionDetails)
 
 	if err != nil {
 		return nil, err
@@ -145,7 +145,6 @@ func MakeServer(versionID string, serverName string, hasAcceptedEULA bool, custo
 		return nil, err
 	}
 
-	// TODO: Update eula.txt and server.properties
 	server := MCServer{ID: id.String(), Name: serverName, Path: worldPath}
 	return &server, nil
 }

@@ -157,8 +157,8 @@ func GetServerFilepath(serverID string) string {
 	return fmt.Sprintf("worlds/%v", serverID)
 }
 
-// DownloadjarFileIfNeeded download a jarFile if the desired jarFile has not already been downloaded
-func DownloadjarFileIfNeeded(versionDetail VersionDetail) (string, error) {
+// DownloadJarFileIfNeeded download a jarFile if the desired jarFile has not already been downloaded
+func DownloadJarFileIfNeeded(versionDetail VersionDetail) (string, error) {
 	jarFileName := fmt.Sprintf("%v.jar", versionDetail.ID)
 	jarFilePath := GetJarFilepath(jarFileName)
 
