@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/ecuyle/gomine/internal/servermanager"
 	"log"
 	"os/exec"
 )
@@ -10,7 +11,7 @@ func main() {
 
 	var serverPropertiesMap = make(map[string]interface{})
 	serverPropertiesMap["difficulty"] = "peaceful"
-	_, err := MakeServer("1.16.4", "TestServer", true, serverPropertiesMap)
+	_, err := servermanager.MakeServer("1.19.4", "TestServer", true, serverPropertiesMap)
 
 	if err != nil {
 		log.Fatalln(err)
