@@ -109,6 +109,7 @@ func GetVersionManifest() (*VersionManifest, error) {
 		return nil, err
 	}
 
+	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 
 	if err != nil {
@@ -126,7 +127,7 @@ func GetVersionManifest() (*VersionManifest, error) {
 }
 
 // DownloadFile downloads a file to a filepath given a url
-func DownloadFile(filepath string, url string) error {
+func DownloadFile(url string, filepath string) error {
 	resp, err := http.Get(url)
 
 	if err != nil {
@@ -174,7 +175,7 @@ func DownloadJarFileIfNeeded(versionDetail VersionDetail) (string, error) {
 		return "", err
 	}
 
-	if err := DownloadFile(jarFilePath, jarFileURL); err != nil {
+	if err := DownloadFile(jarFileURL, jarFilePath); err != nil {
 		return "", err
 	}
 
