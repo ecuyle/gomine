@@ -1,19 +1,25 @@
 package main
 
 import (
-	"github.com/ecuyle/gomine/internal/servermanager"
-	"log"
 	"os/exec"
+
+	"github.com/ecuyle/gomine/internal/api"
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
-	exec.Command("mdkir", "-p", "jarFiles", "worlds", "users")
+	exec.Command("mkdir", "-p", "jarFiles", "worlds", "users")
 
-	var serverPropertiesMap = make(map[string]interface{})
-	serverPropertiesMap["difficulty"] = "peaceful"
-	_, err := servermanager.MakeServer("1.19.4", "TestServer", true, serverPropertiesMap)
+	router := gin.Default()
 
-	if err != nil {
-		log.Fatalln(err)
-	}
+	router.GET("/api/mcsrv", api.GetServer)
+	router.GET("/api/mcsrv/defaults", api.GetDefaults)
+	router.POST("/api/mcsrv", api.PostServer)
+	router.PUT("/api/mcsrv", api.PutServer)
+
+	router.GET("/ping", func(context *gin.Context) {
+		context.String(200, "pong")
+	})
+
+	router.Run("localhost:8080")
 }
