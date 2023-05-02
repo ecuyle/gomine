@@ -4,18 +4,11 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/ecuyle/gomine/internal/db"
 	"github.com/ecuyle/gomine/internal/servermanager"
 	"github.com/gin-gonic/gin"
 	"github.com/magiconair/properties"
 )
-
-type ServerOptions struct {
-	Name           string                 `json:"name"`
-	UserID         string                 `json:"userId"`
-	Runtime        string                 `json:"runtime"`
-	IsEulaAccepted bool                   `json:"isEulaAccepted"`
-	Config         map[string]interface{} `json:"config"`
-}
 
 type ServersQueryParams struct {
 	UserID string `json:"userId"`
@@ -36,8 +29,17 @@ func GetDefaults(context *gin.Context) {
 	context.IndentedJSON(http.StatusOK, &defaultProperties)
 }
 
+func respondWithInternalServerError(context *gin.Context, err error) {
+	log.Println(err)
+	context.String(http.StatusInternalServerError, err.Error())
+}
+
+func respondWithStatusCreated(context *gin.Context, data any) {
+	context.IndentedJSON(http.StatusCreated, data)
+}
+
 func PostServer(context *gin.Context) {
-	var options ServerOptions
+	var options db.ServerOptions
 
 	if err := context.BindJSON(&options); err != nil {
 		log.Println(err)
@@ -48,12 +50,18 @@ func PostServer(context *gin.Context) {
 	server, err := servermanager.MakeServer(options.Runtime, options.Name, options.IsEulaAccepted, options.Config)
 
 	if err != nil {
-		log.Println(err)
-		context.String(http.StatusInternalServerError, err.Error())
+		respondWithInternalServerError(context, err)
 		return
 	}
 
-	context.IndentedJSON(http.StatusCreated, server)
+	err = db.InsertServer(server, &options)
+
+	if err != nil {
+		respondWithInternalServerError(context, err)
+		return
+	}
+
+	respondWithStatusCreated(context, server)
 }
 
 func PutServer(context *gin.Context) {

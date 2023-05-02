@@ -3,5 +3,6 @@ worlds/**
 users/**
 go.sum
 gomine
+gomine.db
 
 .DS_Store
