@@ -9,15 +9,23 @@ import (
 	"github.com/magiconair/properties"
 )
 
-func GetServer(context *gin.Context) {
-}
-
 type ServerOptions struct {
 	Name           string                 `json:"name"`
 	UserID         string                 `json:"userId"`
 	Runtime        string                 `json:"runtime"`
 	IsEulaAccepted bool                   `json:"isEulaAccepted"`
 	Config         map[string]interface{} `json:"config"`
+}
+
+type ServersQueryParams struct {
+	UserID string `json:"userId"`
+}
+
+func GetServersByUserId(context *gin.Context) {
+
+}
+
+func GetServerDetails(context *gin.Context) {
 }
 
 func GetDefaults(context *gin.Context) {
