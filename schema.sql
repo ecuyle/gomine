@@ -15,4 +15,3 @@ CREATE TABLE IF NOT EXISTS servers (
   FOREIGN KEY (user_id)
     REFERENCES users (id)
 );
-

@@ -140,11 +140,11 @@ func MakeServer(versionID string, serverName string, hasAcceptedEULA bool, custo
 		return nil, err
 	}
 
-	_, err = UpdateServerProperties(customServerProperties, fmt.Sprintf("%v/server.properties", worldPath))
+	updatedServerProperties, err := UpdateServerProperties(customServerProperties, fmt.Sprintf("%v/server.properties", worldPath))
 	if err != nil {
 		return nil, err
 	}
 
-	server := MCServer{ID: id.String(), Name: serverName, Path: worldPath}
+	server := MCServer{ID: id.String(), Name: serverName, Path: worldPath, Properties: *updatedServerProperties}
 	return &server, nil
 }
