@@ -147,15 +147,17 @@ func DownloadFile(url string, filepath string) error {
 	return err
 }
 
+const DATA_PATH_PREFIX = "data/"
+
 // GetJarFilepath returns the standard location for downloaded server jarFiles
 func GetJarFilepath(jarFileName string) string {
-	return fmt.Sprintf("jarFiles/%v", jarFileName)
+	return fmt.Sprintf("%vjarFiles/%v", DATA_PATH_PREFIX, jarFileName)
 }
 
 // GetServerFilePath gets the full path to a server from the worlds/
 // directory starting at the project root
 func GetServerFilepath(serverID string) string {
-	return fmt.Sprintf("worlds/%v", serverID)
+	return fmt.Sprintf("%vworlds/%v", DATA_PATH_PREFIX, serverID)
 }
 
 // DownloadJarFileIfNeeded download a jarFile if the desired jarFile has not already been downloaded

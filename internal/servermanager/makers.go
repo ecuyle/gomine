@@ -80,17 +80,17 @@ func MakeWorld(uuid string, jarFileName string) (string, error) {
 	worldPath := GetServerFilepath(uuid)
 	jarFilePath := GetJarFilepath(jarFileName)
 
-	log.Println(fmt.Sprintf("Creating world at `%v`", worldPath))
+	log.Printf("Creating world at `%v`", worldPath)
 	if err := exec.Command("mkdir", "-p", worldPath).Run(); err != nil {
 		return "", err
 	}
 
-	log.Println(fmt.Sprintf("Copying server jarFile from `%v` into `%v`", jarFilePath, worldPath))
+	log.Printf("Copying server jarFile from `%v` into `%v`", jarFilePath, worldPath)
 	if err := exec.Command("cp", jarFilePath, worldPath).Run(); err != nil {
 		return "", err
 	}
 
-	log.Println(fmt.Sprintf("Initializing server jarFile at `%v`...", worldPath))
+	log.Printf("Initializing server jarFile at `%v`...", worldPath)
 	cmd := exec.Command("java", "-jar", jarFileName)
 	cmd.Dir = worldPath
 	if err := cmd.Run(); err != nil {
@@ -98,7 +98,7 @@ func MakeWorld(uuid string, jarFileName string) (string, error) {
 		return "", err
 	}
 
-	log.Println(fmt.Sprintf("Server jarFile successfully initialized at `%v`.", worldPath))
+	log.Printf("Server jarFile successfully initialized at `%v`.", worldPath)
 
 	return worldPath, nil
 }

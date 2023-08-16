@@ -1,14 +1,20 @@
 package main
 
 import (
+	"log"
 	"os/exec"
 
 	"github.com/ecuyle/gomine/internal/api"
+	"github.com/ecuyle/gomine/internal/servermanager"
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
-	exec.Command("mkdir", "-p", "jarFiles", "worlds", "users")
+	cmd := exec.Command("mkdir", "-p", servermanager.GetJarFilepath(""), servermanager.GetServerFilepath(""))
+
+	if err := cmd.Run(); err != nil {
+		log.Fatalln("main.go: Could not initialize required directories")
+	}
 
 	router := gin.Default()
 
