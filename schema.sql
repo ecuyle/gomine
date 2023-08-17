@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS servers (
   name TEXT NOT NULL,
   runtime TEXT NOT NULL,
   path TEXT NOT NULL,
-  pid INTEGER,
+  pid INTEGER DEFAULT -1,
   status BOOLEAN DEFAULT false NOT NULL,
   user_id INTEGER NOT NULL,
   FOREIGN KEY (user_id)
