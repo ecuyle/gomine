@@ -2,7 +2,7 @@ package api
 
 import (
 	"database/sql"
-	"fmt"
+	"errors"
 	"log"
 	"net/http"
 	"os/exec"
@@ -70,9 +70,11 @@ type MCServer struct {
 	ID             string
 	IsEulaAccepted bool
 	Name           string
+	PID            int
 	Path           string
 	Properties     servermanager.ServerProperties
 	Runtime        string
+	Status         bool
 	UserID         string
 }
 
@@ -113,11 +115,11 @@ func makeServer(options *ServerOptions) (*MCServer, error) {
 
 	isEulaAccepted := options.IsEulaAccepted
 
-	if err := servermanager.UpdateEULA(isEulaAccepted, fmt.Sprintf("%v/eula.txt", worldPath)); err != nil {
+	if err := servermanager.UpdateEULA(isEulaAccepted, worldPath); err != nil {
 		return nil, err
 	}
 
-	updatedServerProperties, err := servermanager.UpdateServerProperties(options.Config, fmt.Sprintf("%v/server.properties", worldPath))
+	updatedServerProperties, err := servermanager.UpdateServerProperties(options.Config, worldPath)
 	if err != nil {
 		return nil, err
 	}
@@ -126,16 +128,18 @@ func makeServer(options *ServerOptions) (*MCServer, error) {
 		ID:             id.String(),
 		IsEulaAccepted: isEulaAccepted,
 		Name:           options.Name,
+		PID:            -1,
 		Path:           worldPath,
 		Properties:     *updatedServerProperties,
 		Runtime:        runtime,
+		Status:         false,
 		UserID:         options.UserID,
 	}
 
 	return &server, nil
 }
 
-func insertServer(server *MCServer) error {
+func insertServerRecord(server *MCServer) error {
 	db, err := sql.Open("sqlite3", "./gomine.db")
 
 	if err != nil {
@@ -157,7 +161,7 @@ func insertServer(server *MCServer) error {
 
 	defer statement.Close()
 
-	_, err = statement.Exec(server.ID, server.Name, server.Runtime, server.Path, nil, false, server.UserID)
+	_, err = statement.Exec(server.ID, server.Name, server.Runtime, server.Path, server.PID, server.Status, server.UserID)
 
 	if err != nil {
 		return err
@@ -188,7 +192,7 @@ func PostServer(context *gin.Context) {
 		return
 	}
 
-	err = insertServer(server)
+	err = insertServerRecord(server)
 
 	if err != nil {
 		RespondWithInternalServerError(context, err)
@@ -198,15 +202,109 @@ func PostServer(context *gin.Context) {
 	RespondWithStatusCreated(context, server)
 }
 
-func updateServer(server *MCServer) error {
+type UpdatedServerOptions struct {
+	ServerID      string        `json:"serverId"`
+	ServerOptions ServerOptions `json:"serverOptions"`
+}
+
+func updateServerWorld(server *MCServer) error {
 	return nil
 }
 
 func PutServer(context *gin.Context) {
+	// var options UpdatedServerOptions
+	//
+	// if err := context.BindJSON(&options); err != nil {
+	// 	log.Println(err)
+	// 	context.String(http.StatusBadRequest, err.Error())
+	// 	return
+	// }
+	//
+	// err = updateServerWorld(updatedServer)
+	//
+	// if err != nil {
+	// 	RespondWithInternalServerError(context, err)
+	// 	return
+	// }
+	//
+	// RespondWithStatusCreated(context, updatedServer)
 }
 
 func GetServersByUserId(context *gin.Context) {
 }
 
+func selectServerRecordById(id string) (*MCServer, error) {
+	db, err := sql.Open("sqlite3", "./gomine.db")
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer db.Close()
+
+	statement, err := db.Prepare("select name, runtime, path, pid, status, user_id from servers where id=?")
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer statement.Close()
+
+	server := MCServer{ID: id}
+	err = statement.QueryRow(id).Scan(&server.Name, &server.Runtime, &server.Path, &server.PID, &server.Status, &server.UserID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &server, nil
+}
+
+func populateServerWithProperties(server *MCServer) error {
+	properties := servermanager.ServerProperties{}
+
+	if err := servermanager.GetServerProperties(server.Path).Decode(&properties); err != nil {
+		return err
+	}
+
+	server.Properties = properties
+
+	return nil
+}
+
+func populateServerWithEulaAcceptanceStatus(server *MCServer) error {
+	server.IsEulaAccepted = servermanager.IsEulaAccepted(server.Path)
+	return nil
+}
+
 func GetServerDetails(context *gin.Context) {
+	serverId := context.Query("s")
+
+	if serverId == "" {
+		RespondWithNotFound(context, errors.New("GetServerDetails: No server id provided."))
+		return
+	}
+
+	server, err := selectServerRecordById(serverId)
+
+	if err != nil {
+		RespondWithInternalServerError(context, err)
+		return
+	}
+
+	err = populateServerWithProperties(server)
+
+	if err != nil {
+		RespondWithInternalServerError(context, err)
+		return
+	}
+
+	err = populateServerWithEulaAcceptanceStatus(server)
+
+	if err != nil {
+		RespondWithInternalServerError(context, err)
+		return
+	}
+
+	RespondWithStatusOk(context, server)
 }

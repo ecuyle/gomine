@@ -19,6 +19,7 @@ func main() {
 	router := gin.Default()
 
 	router.GET("/api/mcsrv", api.GetServersByUserId)
+	router.GET("/api/mcsrv/detail", api.GetServerDetails)
 	router.GET("/api/mcsrv/defaults", api.GetDefaults)
 	router.POST("/api/mcsrv", api.PostServer)
 	router.PUT("/api/mcsrv", api.PutServer)
