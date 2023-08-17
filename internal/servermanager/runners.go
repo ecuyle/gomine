@@ -237,8 +237,25 @@ func DownloadJarFileIfNeeded(versionDetail VersionDetail) (string, error) {
 	return jarFileName, nil
 }
 
+func GetEULAFilepath(worldpath string) string {
+	return fmt.Sprintf("%v/eula.txt", worldpath)
+}
+
+func IsEulaAccepted(worldpath string) bool {
+	data, err := ioutil.ReadFile(GetEULAFilepath(worldpath))
+
+	if err != nil {
+		return false
+	}
+
+	trueInBytes := []byte(strconv.FormatBool(true))
+
+	return bytes.Contains(data, trueInBytes)
+}
+
 // UpdateEULA updates the eula.txt for a server with the provided value
-func UpdateEULA(value bool, filepath string) error {
+func UpdateEULA(value bool, worldpath string) error {
+	filepath := GetEULAFilepath(worldpath)
 	data, err := ioutil.ReadFile(filepath)
 
 	if err != nil {
@@ -271,14 +288,18 @@ func UpdateEULA(value bool, filepath string) error {
 	return nil
 }
 
+func GetServerPropertiesFilepath(worldpath string) string {
+	return fmt.Sprintf("%v/server.properties", worldpath)
+}
+
 // GetServerProperties gets the current server properties for a given server
-func GetServerProperties(filepath string) *properties.Properties {
-	return properties.MustLoadFile(filepath, properties.UTF8)
+func GetServerProperties(worldpath string) *properties.Properties {
+	return properties.MustLoadFile(GetServerPropertiesFilepath(worldpath), properties.UTF8)
 }
 
 // WriteServerProperties updates a server.properties file with an updated properties.Properties struct
-func WriteServerProperties(filepath string, serverProperties *properties.Properties) error {
-	serverPropertiesFile, err := os.Create(filepath)
+func WriteServerProperties(worldpath string, serverProperties *properties.Properties) error {
+	serverPropertiesFile, err := os.Create(GetServerPropertiesFilepath(worldpath))
 	if err != nil {
 		return err
 	}
@@ -294,8 +315,8 @@ func WriteServerProperties(filepath string, serverProperties *properties.Propert
 }
 
 // UpdateServerProperties updates the server.properties file for a given server
-func UpdateServerProperties(customServerProperties map[string]interface{}, filepath string) (*ServerProperties, error) {
-	currentServerProperties := GetServerProperties(filepath)
+func UpdateServerProperties(customServerProperties map[string]interface{}, worldpath string) (*ServerProperties, error) {
+	currentServerProperties := GetServerProperties(worldpath)
 
 	for key, value := range customServerProperties {
 		if err := currentServerProperties.SetValue(key, value); err != nil {
@@ -303,11 +324,11 @@ func UpdateServerProperties(customServerProperties map[string]interface{}, filep
 		}
 	}
 
-	if err := WriteServerProperties(filepath, currentServerProperties); err != nil {
+	if err := WriteServerProperties(worldpath, currentServerProperties); err != nil {
 		return nil, err
 	}
 
-	log.Println(fmt.Sprintf("`%v` updated with new values: %v", filepath, customServerProperties))
+	log.Println(fmt.Sprintf("`%v` updated with new values: %v", GetServerPropertiesFilepath(worldpath), customServerProperties))
 
 	updatedServerProperties := ServerProperties{}
 	if err := currentServerProperties.Decode(&updatedServerProperties); err != nil {
