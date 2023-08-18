@@ -65,6 +65,16 @@ type ServerOptions struct {
 	Config         map[string]interface{} `json:"config"`
 }
 
+type MCServerLite struct {
+	ID      string
+	Name    string
+	PID     int
+	Path    string
+	Runtime string
+	Status  bool
+	UserID  string
+}
+
 // MCServer struct
 type MCServer struct {
 	ID             string
@@ -237,9 +247,6 @@ func PutServerProperties(context *gin.Context) {
 	RespondWithStatusCreated(context, updatedProperties)
 }
 
-func GetServersByUserId(context *gin.Context) {
-}
-
 func selectServerRecordById(id string) (*MCServer, error) {
 	db, err := sql.Open("sqlite3", "./gomine.db")
 
@@ -319,4 +326,60 @@ func GetServerDetails(context *gin.Context) {
 	}
 
 	RespondWithStatusOk(context, server)
+}
+
+func selectServerRecordsByUserId(id string) (*[]MCServerLite, error) {
+	db, err := sql.Open("sqlite3", "./gomine.db")
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer db.Close()
+
+	statement, err := db.Prepare("select name, runtime, path, pid, status, user_id from servers where user_id=?")
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer statement.Close()
+
+	rows, err := statement.Query(id)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+	servers := []MCServerLite{}
+
+	for rows.Next() {
+		server := MCServerLite{ID: id}
+		err = rows.Scan(&server.Name, &server.Runtime, &server.Path, &server.PID, &server.Status, &server.UserID)
+
+		if err == nil {
+			servers = append(servers, server)
+		}
+	}
+
+	return &servers, nil
+}
+
+func GetServersByUserId(context *gin.Context) {
+	userId := context.Query("u")
+
+	if userId == "" {
+		RespondWithNotFound(context, errors.New("GetServersByUserId: No user id provided."))
+		return
+	}
+
+	servers, err := selectServerRecordsByUserId(userId)
+
+	if err != nil {
+		RespondWithInternalServerError(context, err)
+		return
+	}
+
+	RespondWithStatusOk(context, servers)
 }
