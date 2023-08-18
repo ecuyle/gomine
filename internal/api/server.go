@@ -202,32 +202,39 @@ func PostServer(context *gin.Context) {
 	RespondWithStatusCreated(context, server)
 }
 
-type UpdatedServerOptions struct {
-	ServerID      string        `json:"serverId"`
-	ServerOptions ServerOptions `json:"serverOptions"`
+type UpdatedServerProperties struct {
+	ServerID         string                 `json:"serverId"`
+	ServerProperties map[string]interface{} `json:"serverProperties"`
 }
 
-func updateServerWorld(server *MCServer) error {
-	return nil
+func updateServerWorld(serverId string, properties map[string]interface{}) (*servermanager.ServerProperties, error) {
+	filepath := servermanager.GetServerFilepath(serverId)
+	updatedProperties, err := servermanager.UpdateServerProperties(properties, filepath)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return updatedProperties, nil
 }
 
-func PutServer(context *gin.Context) {
-	// var options UpdatedServerOptions
-	//
-	// if err := context.BindJSON(&options); err != nil {
-	// 	log.Println(err)
-	// 	context.String(http.StatusBadRequest, err.Error())
-	// 	return
-	// }
-	//
-	// err = updateServerWorld(updatedServer)
-	//
-	// if err != nil {
-	// 	RespondWithInternalServerError(context, err)
-	// 	return
-	// }
-	//
-	// RespondWithStatusCreated(context, updatedServer)
+func PutServerProperties(context *gin.Context) {
+	var options UpdatedServerProperties
+
+	if err := context.BindJSON(&options); err != nil {
+		log.Println(err)
+		context.String(http.StatusBadRequest, err.Error())
+		return
+	}
+
+	updatedProperties, err := updateServerWorld(options.ServerID, options.ServerProperties)
+
+	if err != nil {
+		RespondWithInternalServerError(context, err)
+		return
+	}
+
+	RespondWithStatusCreated(context, updatedProperties)
 }
 
 func GetServersByUserId(context *gin.Context) {
@@ -262,8 +269,13 @@ func selectServerRecordById(id string) (*MCServer, error) {
 
 func populateServerWithProperties(server *MCServer) error {
 	properties := servermanager.ServerProperties{}
+	serverPropertiesFromDisk, err := servermanager.GetServerProperties(server.Path)
 
-	if err := servermanager.GetServerProperties(server.Path).Decode(&properties); err != nil {
+	if err != nil {
+		return err
+	}
+
+	if err := serverPropertiesFromDisk.Decode(&properties); err != nil {
 		return err
 	}
 

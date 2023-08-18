@@ -293,8 +293,14 @@ func GetServerPropertiesFilepath(worldpath string) string {
 }
 
 // GetServerProperties gets the current server properties for a given server
-func GetServerProperties(worldpath string) *properties.Properties {
-	return properties.MustLoadFile(GetServerPropertiesFilepath(worldpath), properties.UTF8)
+func GetServerProperties(worldpath string) (*properties.Properties, error) {
+	result, err := properties.LoadFile(GetServerPropertiesFilepath(worldpath), properties.UTF8)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
 
 // WriteServerProperties updates a server.properties file with an updated properties.Properties struct
@@ -316,7 +322,11 @@ func WriteServerProperties(worldpath string, serverProperties *properties.Proper
 
 // UpdateServerProperties updates the server.properties file for a given server
 func UpdateServerProperties(customServerProperties map[string]interface{}, worldpath string) (*ServerProperties, error) {
-	currentServerProperties := GetServerProperties(worldpath)
+	currentServerProperties, err := GetServerProperties(worldpath)
+
+	if err != nil {
+		return nil, err
+	}
 
 	for key, value := range customServerProperties {
 		if err := currentServerProperties.SetValue(key, value); err != nil {

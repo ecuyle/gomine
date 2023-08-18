@@ -22,7 +22,7 @@ func main() {
 	router.GET("/api/mcsrv/detail", api.GetServerDetails)
 	router.GET("/api/mcsrv/defaults", api.GetDefaults)
 	router.POST("/api/mcsrv", api.PostServer)
-	router.PUT("/api/mcsrv", api.PutServer)
+	router.PUT("/api/mcsrv/properties", api.PutServerProperties)
 
 	router.GET("/ping", func(context *gin.Context) {
 		context.String(200, "pong")
