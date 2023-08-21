@@ -24,6 +24,8 @@ func main() {
 	router.POST("/api/mcsrv", api.PostServer)
 	router.PUT("/api/mcsrv/properties", api.PutServerProperties)
 
+	router.POST("/api/mcusr", api.PostUser)
+
 	router.GET("/ping", func(context *gin.Context) {
 		context.String(200, "pong")
 	})

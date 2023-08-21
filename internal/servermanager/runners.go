@@ -11,7 +11,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"strconv"
 
 	"github.com/magiconair/properties"
@@ -219,16 +218,12 @@ func DownloadJarFileIfNeeded(versionDetail VersionDetail) (string, error) {
 	jarFilePath := GetJarFilepath(jarFileName)
 
 	if _, err := os.Stat(jarFilePath); err == nil {
-		log.Println(fmt.Sprintf("jarFile `%v` found. Skipping download.", jarFilePath))
+		log.Printf("jarFile `%v` found. Skipping download.", jarFilePath)
 		return jarFileName, nil
 	}
 
 	jarFileURL := versionDetail.Downloads.Server.URL
-	log.Println(fmt.Sprintf("Downloading jarFile from `%v` into `%v`", jarFileURL, jarFilePath))
-
-	if err := exec.Command("mkdir", "-p", "jarFiles").Run(); err != nil {
-		return "", err
-	}
+	log.Printf("Downloading jarFile from `%v` into `%v`", jarFileURL, jarFilePath)
 
 	if err := DownloadFile(jarFileURL, jarFilePath); err != nil {
 		return "", err
@@ -265,7 +260,7 @@ func UpdateEULA(value bool, worldpath string) error {
 	oldValueInBytes := []byte(strconv.FormatBool(!value))
 
 	if !bytes.Contains(data, oldValueInBytes) {
-		log.Println(fmt.Sprintf("`%v` already is set to value `%v`. Skipping EULA update.", filepath, value))
+		log.Printf("`%v` already is set to value `%v`. Skipping EULA update.", filepath, value)
 		return nil
 	}
 
@@ -284,7 +279,7 @@ func UpdateEULA(value bool, worldpath string) error {
 		return err
 	}
 
-	log.Println(fmt.Sprintf("`%v` updated with new value `%v`", filepath, value))
+	log.Printf("`%v` updated with new value `%v`", filepath, value)
 	return nil
 }
 
@@ -338,7 +333,7 @@ func UpdateServerProperties(customServerProperties map[string]interface{}, world
 		return nil, err
 	}
 
-	log.Println(fmt.Sprintf("`%v` updated with new values: %v", GetServerPropertiesFilepath(worldpath), customServerProperties))
+	log.Printf("`%v` updated with new values: %v", GetServerPropertiesFilepath(worldpath), customServerProperties)
 
 	updatedServerProperties := ServerProperties{}
 	if err := currentServerProperties.Decode(&updatedServerProperties); err != nil {
