@@ -5,7 +5,7 @@ import (
 )
 
 func GenerateHashFromPassword(password string) (string, error) {
-	hashedPasswordBytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
+	hashedPasswordBytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 
 	return string(hashedPasswordBytes), err
 }

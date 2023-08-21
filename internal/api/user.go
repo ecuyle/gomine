@@ -2,8 +2,10 @@ package api
 
 import (
 	"database/sql"
+	"html"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/ecuyle/gomine/internal/authentication"
 	"github.com/gin-gonic/gin"
@@ -71,7 +73,9 @@ func makeUser(username, password string) (*User, error) {
 		return nil, err
 	}
 
-	return &User{ID: id.String(), Username: username, Hash: hash}, nil
+	escapedUsername := html.EscapeString(strings.TrimSpace(username))
+
+	return &User{ID: id.String(), Username: escapedUsername, Hash: hash}, nil
 }
 
 func PostUser(context *gin.Context) {
