@@ -25,11 +25,13 @@ func main() {
 
 	router := gin.Default()
 
-	router.GET("/api/mcsrv", api.GetServersByUserId)
-	router.GET("/api/mcsrv/detail", api.GetServerDetails)
-	router.GET("/api/mcsrv/defaults", api.GetDefaults)
-	router.POST("/api/mcsrv", api.PostServer)
-	router.PUT("/api/mcsrv/properties", api.PutServerProperties)
+	serverRoutes := router.Group("/api/mcsrv")
+	serverRoutes.Use(api.JwtAuthMiddleware())
+	serverRoutes.GET("/", api.GetServersByUserId)
+	serverRoutes.GET("/detail", api.GetServerDetails)
+	serverRoutes.GET("/defaults", api.GetDefaults)
+	serverRoutes.POST("/", api.PostServer)
+	serverRoutes.PUT("/properties", api.PutServerProperties)
 
 	router.POST("/api/mcusr", api.PostUser)
 
