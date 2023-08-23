@@ -5,3 +5,4 @@ gomine.db
 main
 
 .DS_Store
+.env
