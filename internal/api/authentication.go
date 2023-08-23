@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func TokenValid(c *gin.Context) bool {
+func IsTokenValid(c *gin.Context) bool {
 	rawToken := ExtractToken(c)
 
 	return authentication.CheckTokenValidity(rawToken)
