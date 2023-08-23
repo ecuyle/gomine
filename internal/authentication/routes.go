@@ -1,29 +1,15 @@
-package api
+package authentication
 
 import (
 	"database/sql"
 	"fmt"
 	"net/http"
 
-	"github.com/ecuyle/gomine/internal/authentication"
+	"github.com/ecuyle/gomine/internal/passwords"
+	"github.com/ecuyle/gomine/internal/token"
+	"github.com/ecuyle/gomine/internal/user"
 	"github.com/gin-gonic/gin"
 )
-
-func IsTokenValid(c *gin.Context) bool {
-	rawToken := ExtractToken(c)
-
-	return authentication.CheckTokenValidity(rawToken)
-}
-
-func ExtractToken(c *gin.Context) string {
-	return authentication.ExtractTokenFromBearerToken(c.Request.Header.Get("Authorization"))
-}
-
-func ExtractTokenID(c *gin.Context) (string, error) {
-	rawToken := ExtractToken(c)
-
-	return authentication.ExtractUserIdFromToken(rawToken)
-}
 
 type AuthenticationOptions struct {
 	Username string `json:"username" binding:"required"`
@@ -53,20 +39,20 @@ func retrieveAccessTokenIfCredentialsValid(username, password string) (string, e
 
 	defer statement.Close()
 
-	user := User{}
+	user := user.User{}
 	err = statement.QueryRow(username).Scan(&user.ID, &user.Username, &user.Hash)
 
 	if err != nil {
 		return "", err
 	}
 
-	err = authentication.ComparePasswordwithHash(password, user.Hash)
+	err = passwords.ComparePasswordWithHash(password, user.Hash)
 
 	if err != nil {
 		return "", err
 	}
 
-	token, err := authentication.GenerateToken(user.ID)
+	token, err := token.GenerateToken(user.ID)
 
 	if err != nil {
 		return "", err

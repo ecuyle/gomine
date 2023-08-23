@@ -1,4 +1,4 @@
-package authentication
+package token
 
 import (
 	"fmt"
@@ -8,6 +8,7 @@ import (
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/gin-gonic/gin"
 )
 
 func GenerateToken(userId string) (string, error) {
@@ -65,4 +66,20 @@ func ExtractUserIdFromToken(rawToken string) (string, error) {
 	}
 
 	return "", nil
+}
+
+func IsTokenValid(c *gin.Context) bool {
+	rawToken := ExtractToken(c)
+
+	return CheckTokenValidity(rawToken)
+}
+
+func ExtractToken(c *gin.Context) string {
+	return ExtractTokenFromBearerToken(c.Request.Header.Get("Authorization"))
+}
+
+func ExtractTokenID(c *gin.Context) (string, error) {
+	rawToken := ExtractToken(c)
+
+	return ExtractUserIdFromToken(rawToken)
 }

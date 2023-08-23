@@ -1,4 +1,4 @@
-package api
+package servers
 
 import (
 	"database/sql"
@@ -9,14 +9,14 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/ecuyle/gomine/internal/servermanager"
+	httputils "github.com/ecuyle/gomine/internal/http"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/magiconair/properties"
 )
 
 func GetDefaults(context *gin.Context) {
-	var defaultProperties servermanager.ServerProperties
+	var defaultProperties ServerProperties
 	var p properties.Properties
 
 	p.Decode(&defaultProperties)
@@ -31,8 +31,8 @@ func GetDefaults(context *gin.Context) {
 //
 // The path to this new directory is returned upon successful operation.
 func makeWorld(uuid string, jarFileName string) (string, error) {
-	worldPath := servermanager.GetServerFilepath(uuid)
-	jarFilePath := servermanager.GetJarFilepath(jarFileName)
+	worldPath := GetServerFilepath(uuid)
+	jarFilePath := GetJarFilepath(jarFileName)
 
 	log.Printf("Creating world at `%v`", worldPath)
 	if err := exec.Command("mkdir", "-p", worldPath).Run(); err != nil {
@@ -82,7 +82,7 @@ type MCServer struct {
 	Name           string
 	PID            int
 	Path           string
-	Properties     servermanager.ServerProperties
+	Properties     ServerProperties
 	Runtime        string
 	Status         bool
 	UserID         string
@@ -93,19 +93,19 @@ func makeServer(options *ServerOptions) (*MCServer, error) {
 	runtime := options.Runtime
 
 	// TODO: This can all probably be cached
-	version, err := servermanager.GetVersionByID(runtime)
+	version, err := GetVersionByID(runtime)
 
 	if err != nil {
 		return nil, err
 	}
 
-	versionDetails, err := servermanager.GetVersionDetail(version.URL)
+	versionDetails, err := GetVersionDetail(version.URL)
 
 	if err != nil {
 		return nil, err
 	}
 
-	jarFileName, err := servermanager.DownloadJarFileIfNeeded(*versionDetails)
+	jarFileName, err := DownloadJarFileIfNeeded(*versionDetails)
 
 	if err != nil {
 		return nil, err
@@ -125,11 +125,11 @@ func makeServer(options *ServerOptions) (*MCServer, error) {
 
 	isEulaAccepted := options.IsEulaAccepted
 
-	if err := servermanager.UpdateEULA(isEulaAccepted, worldPath); err != nil {
+	if err := UpdateEULA(isEulaAccepted, worldPath); err != nil {
 		return nil, err
 	}
 
-	updatedServerProperties, err := servermanager.UpdateServerProperties(options.Config, worldPath)
+	updatedServerProperties, err := UpdateServerProperties(options.Config, worldPath)
 	if err != nil {
 		return nil, err
 	}
@@ -198,18 +198,18 @@ func PostServer(context *gin.Context) {
 	server, err := makeServer(&options)
 
 	if err != nil {
-		RespondWithInternalServerError(context, err)
+		httputils.RespondWithInternalServerError(context, err)
 		return
 	}
 
 	err = insertServerRecord(server)
 
 	if err != nil {
-		RespondWithInternalServerError(context, err)
+		httputils.RespondWithInternalServerError(context, err)
 		return
 	}
 
-	RespondWithStatusCreated(context, server)
+	httputils.RespondWithStatusCreated(context, server)
 }
 
 type UpdatedServerProperties struct {
@@ -217,9 +217,9 @@ type UpdatedServerProperties struct {
 	ServerProperties map[string]interface{} `json:"serverProperties"`
 }
 
-func updateServerWorld(serverId string, properties map[string]interface{}) (*servermanager.ServerProperties, error) {
-	filepath := servermanager.GetServerFilepath(serverId)
-	updatedProperties, err := servermanager.UpdateServerProperties(properties, filepath)
+func updateServerWorld(serverId string, properties map[string]interface{}) (*ServerProperties, error) {
+	filepath := GetServerFilepath(serverId)
+	updatedProperties, err := UpdateServerProperties(properties, filepath)
 
 	if err != nil {
 		return nil, err
@@ -240,11 +240,11 @@ func PutServerProperties(context *gin.Context) {
 	updatedProperties, err := updateServerWorld(options.ServerID, options.ServerProperties)
 
 	if err != nil {
-		RespondWithInternalServerError(context, err)
+		httputils.RespondWithInternalServerError(context, err)
 		return
 	}
 
-	RespondWithStatusCreated(context, updatedProperties)
+	httputils.RespondWithStatusCreated(context, updatedProperties)
 }
 
 func selectServerRecordById(id string) (*MCServer, error) {
@@ -275,8 +275,8 @@ func selectServerRecordById(id string) (*MCServer, error) {
 }
 
 func populateServerWithProperties(server *MCServer) error {
-	properties := servermanager.ServerProperties{}
-	serverPropertiesFromDisk, err := servermanager.GetServerProperties(server.Path)
+	properties := ServerProperties{}
+	serverPropertiesFromDisk, err := GetServerProperties(server.Path)
 
 	if err != nil {
 		return err
@@ -292,7 +292,7 @@ func populateServerWithProperties(server *MCServer) error {
 }
 
 func populateServerWithEulaAcceptanceStatus(server *MCServer) error {
-	server.IsEulaAccepted = servermanager.IsEulaAccepted(server.Path)
+	server.IsEulaAccepted = IsEulaAccepted(server.Path)
 	return nil
 }
 
@@ -300,32 +300,32 @@ func GetServerDetails(context *gin.Context) {
 	serverId := context.Query("s")
 
 	if serverId == "" {
-		RespondWithNotFound(context, errors.New("GetServerDetails: No server id provided."))
+		httputils.RespondWithNotFound(context, errors.New("GetServerDetails: No server id provided."))
 		return
 	}
 
 	server, err := selectServerRecordById(serverId)
 
 	if err != nil {
-		RespondWithInternalServerError(context, err)
+		httputils.RespondWithInternalServerError(context, err)
 		return
 	}
 
 	err = populateServerWithProperties(server)
 
 	if err != nil {
-		RespondWithInternalServerError(context, err)
+		httputils.RespondWithInternalServerError(context, err)
 		return
 	}
 
 	err = populateServerWithEulaAcceptanceStatus(server)
 
 	if err != nil {
-		RespondWithInternalServerError(context, err)
+		httputils.RespondWithInternalServerError(context, err)
 		return
 	}
 
-	RespondWithStatusOk(context, server)
+	httputils.RespondWithStatusOk(context, server)
 }
 
 func selectServerRecordsByUserId(id string) (*[]MCServerLite, error) {
@@ -370,16 +370,16 @@ func GetServersByUserId(context *gin.Context) {
 	userId := context.Query("u")
 
 	if userId == "" {
-		RespondWithNotFound(context, errors.New("GetServersByUserId: No user id provided."))
+		httputils.RespondWithNotFound(context, errors.New("GetServersByUserId: No user id provided."))
 		return
 	}
 
 	servers, err := selectServerRecordsByUserId(userId)
 
 	if err != nil {
-		RespondWithInternalServerError(context, err)
+		httputils.RespondWithInternalServerError(context, err)
 		return
 	}
 
-	RespondWithStatusOk(context, servers)
+	httputils.RespondWithStatusOk(context, servers)
 }

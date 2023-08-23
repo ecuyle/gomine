@@ -1,4 +1,4 @@
-package api
+package user
 
 import (
 	"database/sql"
@@ -7,7 +7,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/ecuyle/gomine/internal/authentication"
+	httputils "github.com/ecuyle/gomine/internal/http"
+	"github.com/ecuyle/gomine/internal/passwords"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -61,7 +62,8 @@ func insertUser(user *User) error {
 }
 
 func makeUser(username, password string) (*User, error) {
-	hash, err := authentication.GenerateHashFromPassword(password)
+	// hash, err := password.GenerateHashFromPassword(password)
+	hash, err := passwords.GenerateHashFromPassword(password)
 
 	if err != nil {
 		return nil, err
@@ -105,7 +107,7 @@ func PostUser(context *gin.Context) {
 		return
 	}
 
-	RespondWithStatusCreated(context, map[string]string{
+	httputils.RespondWithStatusCreated(context, map[string]string{
 		"id":       user.ID,
 		"username": user.Username,
 	})

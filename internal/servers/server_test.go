@@ -1,4 +1,4 @@
-package api
+package servers
 
 import (
 	"encoding/json"
@@ -6,7 +6,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/ecuyle/gomine/internal/servermanager"
 	"github.com/gin-gonic/gin"
 	"github.com/magiconair/properties"
 	"gotest.tools/assert"
@@ -22,11 +21,11 @@ func TestGetDefaults(t *testing.T) {
 	router.ServeHTTP(w, req)
 	assert.Equal(t, 200, w.Code)
 
-	expectedProperties := servermanager.ServerProperties{}
+	expectedProperties := ServerProperties{}
 	var p properties.Properties
 	p.Decode(&expectedProperties)
 
-	actual := servermanager.ServerProperties{}
+	actual := ServerProperties{}
 	json.Unmarshal(w.Body.Bytes(), &actual)
 
 	assert.DeepEqual(t, expectedProperties, actual)

@@ -1,4 +1,4 @@
-package authentication
+package passwords
 
 import (
 	"golang.org/x/crypto/bcrypt"
@@ -10,6 +10,6 @@ func GenerateHashFromPassword(password string) (string, error) {
 	return string(hashedPasswordBytes), err
 }
 
-func ComparePasswordwithHash(passwordAttempt, hash string) error {
+func ComparePasswordWithHash(passwordAttempt, hash string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(passwordAttempt))
 }
